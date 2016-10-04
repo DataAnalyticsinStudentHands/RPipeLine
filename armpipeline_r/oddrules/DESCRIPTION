@@ -1,0 +1,14 @@
+Package: oddrules
+Type: Package
+Title: Examines odds ratios of rules
+Version: 1.0
+Date: 2016-02-28
+Author: Giulia Toti
+Maintainer: University of Houston DASH Program <dash@uh.edu>
+Description: Functions to examine odds ratios of rules generated using arules. Uses include generating custom intervals, testing for redundancy, and auto looping through several training sizes and splits.
+License: BSD_3_clause + file LICENSE
+RoxygenNote: 5.0.1
+Depends: arules,doParallel,gsubfn,foreach
+Suggests: knitr,rmarkdown
+VignetteBuilder: knitr
+

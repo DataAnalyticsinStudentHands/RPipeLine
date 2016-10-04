@@ -1,0 +1,153 @@
+---
+title: "Odds Ratios for Rules"
+author: "Carol"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Odds Ratios for Rules}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+```{r}
+library(oddrules)
+
+```
+
+# Odds Ratios for Rules
+This package works with arules to mine and test rules in a data set.
+This document will provide an example of this process using pollution data included in the package.
+
+```{r}
+data(Pollution)
+
+```
+
+##Using bin_quantile
+This data includes an event column referring to asthma attacks, and 31 columns of pollution data for different pollutants with different lags. The values for pollution concentration are continous, so the first thing we need to do is put it into a logical format that can be coerced into transactions and mined for rules. We do this using the function bin_quantile.
+
+```{r}
+binned = bin_quantile(Pollution, col=2:31, top=0.95)
+
+```
+
+Where pollution refers to the data set were using, col refers to the columns to be binned, and top refers to the probabilty of the quantile, in this case at 0.95 the bottom 95 percent will be tagged FALSE and the top 5 percent will be tagged TRUE. The output should be a list of both the labeled dataset and the thresholds used.
+
+Called in this way, bin_quantile will establish a threshold for each column and bin them based on that threshold either TRUE or FALSE. However in some cases we may not want to establish a new threshold for each column, or we may want to use several columns to establish a threshold. For example in our data set, we have five columns for each type of pollutant at different lags. We may want to bin these together and we can using the parameter group.
+
+```{r}
+binned2 = bin_quantile(Pollution, col=2:31, top=0.95, group=5)
+
+```
+
+Now we have created a data set where each 5 columns have been processed and binned together. All the data in the group has gone into making the threshold and the same threshold has been used for all five columns.
+
+In some cases we may want to only use one column per group to establish the group threshold. For instance in our data set the first column of each group has the shortest lag time so we may want to bin all five columns by the threshold of the first column. We can do this using the parameter groupthreshold.
+
+```{r}
+binned3 = bin_quantile(Pollution, col=2:31, top=0.95, group=5, groupthreshold=1)
+```
+
+## Mining Rules
+
+Since we only want the data set we can use a couple commands to get it off the list and back in logical format.
+
+```{r}
+binned <- as.data.frame(binned$data)
+sample <- binned
+sampleLog <- data.frame(lapply(sample, as.logical))
+
+```
+
+Then we will want to split the data into training and testing using random_split.
+
+```{r}
+splitdata <- random_split(sampleLog, seed=1, split=5000) 
+whole_training <- as.data.frame(splitdata$whole_training)
+testing <- as.data.frame(splitdata$testing)
+
+```
+
+The function random_split splits the data set using a seed specified by the user with a default of one. The parameter split determines the size of the training set and the rest of the data goes into testing. The output is a list with the training and testing dataframes.
+
+After this we can coerce the training and testing set into transactions and mine the rules using the apriori function from the package arules. In this case we will also subset rules leading to the event.
+
+```{r}
+trainingTrans <- as(whole_training, "transactions")
+rules <- apriori(trainingTrans, parameter = list(support = 0.005, confidence = 0.0, maxlen = 6))
+rules <- subset(rules, subset = rhs %in% "event")
+```
+
+## Abstracting Useful information about the rules
+
+The package oddrules offers a few specialized functions for abstracting useful information about the rules.Some of these functions require a secondary input with negated features like below.
+```{r}
+sampleNot <- as.data.frame(!whole_training)
+sampleNot$event <- whole_training$event
+trainingNot <- as(sampleNot, "transactions")
+
+```
+
+The first function myOddsRatio is based on a function included in the package arules (.basicRuleMeasure) originally designed to compute various measures of interest for association rules. It has been modified to make it dedicated to odds ratio only, with some new functionalities (standard error, confidence interval, statistical significance). It can be called as follows.
+
+```{r}
+myOddsRatioExp(rules, trainingTrans, trainingNot, CI=TRUE, t=0.03)
+
+
+```
+
+We can also create custom confidence intervals for rules based on different possibilities using the function customCI.
+
+```{r}
+customCI(rules, trainingTrans, trainingNot, alpha = 1.598)
+
+```
+
+We can also check for redundant rules using the function improvementcustomCI.
+
+```{r}
+improvement_customCI_par(rules)
+
+```
+
+Which will return a logical vector with TRUE values for nonredundant rules and false values for redundant values.
+
+These functions can be used on both the training set and also to validate them in the testing set, if a testing set and a negated testing set have been made.
+
+```{r}
+sampleNot <- as.data.frame(!testing)
+sampleNot$event <- testing$event
+
+testingTrans <- as(testing, "transactions")
+testingNot <- as(sampleNot, "transactions")
+
+myOddsRatioExp(rules, testingTrans, testingNot, CI=TRUE, t=0.03)
+customCI(rules, testingTrans, testingNot, alpha = 1.598)
+
+```
+
+While the User can use each of these functions seperately. The user can also employ overfit_test to use all the functions without calling them individually and the output will be a list of four: the number of rules that a minimum threshold of support, significance, are nonredundant and a testframe displaying those rules.
+
+```{r}
+overfit_test(whole_training, testing, seed=1,trainingsize=5000)
+
+```
+
+In cases where the User may want to mine rules from the training set after being split in multiple different ways in different sizes, overfit-test can also be called to loop through different seeds and training sizes.
+
+```{r}
+Results <- overfit_test(whole_training, testing, seed=1:3, trainingsize=c(5000,2000,1000))
+Results
+
+```
+
+In which case the output will include 3 matrices with the number of rules meeting a minumum threshold of support, significance and are nonredundant at each iteration, and a dataframe TestFrame with said successful rules and summary statistics from all above mentioned functions. The function overfit_test works on multiple for loops, so it may run slow depending on the amount of data and rules generated. The user has been warned.
+
+Because the rules mined in the above line have been mined from several different samples of the training set a lot of them are repetitive or redundant. We can filter them out using the nonredundant function. This function requires a dataframe of the rules including confidence intervals for the rules and a vector of strings with the names of the variables used to make the rules.
+
+
+```{r}
+variables <- colnames(binned)[-1] 
+nonredundant(Results$TestFrame,variables)
+
+```
+
