@@ -1,7 +1,7 @@
 source('../pipeline.R')
 
 #data loading functions
-dataframe <- load.file_as_dataframe('sample_data/ARM.csv')
+dataframe <- load.file_as_dataframe('sample_data/QuARM.csv')
 
 #user-define data parameters
 columns_to_process <- seq(from=6, to=64, by=2)
@@ -12,4 +12,4 @@ binarized_dataframe <- prepare.binarize_data_frame(dataframe, quantile_threshold
 split_data <- prepare.split_dataframe_for_training_and_testing(binarized_dataframe, sampling_method='random', training_size=5000)
 
 #data processing functions
-results <- process.using_ARM(split_data, seeds=1:10, training_sample_sizes=c(5000,2000,1000,500,200,100,50,20,10), remove_insignificant_results=TRUE, remove_redundant_results=TRUE)
+results <- process.using_QuARM(split_data, seeds=1:10, training_sample_sizes=c(5000,2000,1000,500,200,100,50,20,10), remove_insignificant_results=TRUE, remove_redundant_results=TRUE)

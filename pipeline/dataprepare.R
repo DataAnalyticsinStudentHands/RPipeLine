@@ -162,3 +162,4 @@ help.prepare.normalize_and_validate_column_list <- function(dataframe, column_li
   }
   return(normalized_column_list)
 }
+

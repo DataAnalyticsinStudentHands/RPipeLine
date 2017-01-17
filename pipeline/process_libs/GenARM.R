@@ -1,10 +1,10 @@
-##### GA ALGORITHM FOR RULE MINING - OR ORIENTED #####
+##### GenARM ALGORITHM FOR RULE MINING - OR ORIENTED #####
 
 # This script implements a genetic algorithm for the automatic
 # mining of association rules of the form {exposures} -> event.
 # The design is based on the algorithm proposed in Alatas-05.
 
-GA.perform_genetic_algorithm_rule_mining <- function(dataframe, number_of_generations=200, gene_pool_size=30, initial_attribute_probability=0.25, seed=NULL,
+GenARM.perform_genetic_algorithm_rule_mining <- function(dataframe, number_of_generations=200, gene_pool_size=30, initial_attribute_probability=0.25, seed=NULL,
                                                      weights=rep(1,4), crossover_probability=0.6, parental_inheritance_proportion=0.5, tournament_size=4, mutation_probability_range=c(0.001, 0.01),
                                                      tournament_win_probability_range=c(0.9, 0.6), fitness_mode=c("sum", "arithmetic", "geometric")) {
   
@@ -13,7 +13,7 @@ GA.perform_genetic_algorithm_rule_mining <- function(dataframe, number_of_genera
   #       the first column) The first column of this 
   # data frame must contain the event information, while the 
   # remaining columns are exposures.
-  # number_of_generations: number of number_of_generations for GA
+  # number_of_generations: number of number_of_generations for GenARM
   # gene_pool_size: gene pool size
   # initial_attribute_probability: initial probability of any attribute to be included in a rule
   # seed: seed for random number generation
@@ -60,14 +60,14 @@ GA.perform_genetic_algorithm_rule_mining <- function(dataframe, number_of_genera
   }
   
   fitness_values <- array(data = NA, gene_pool_size)  
-  statistics = data.frame(odds_ratio=rep(NA, gene_pool_size), odds_ratio_fitness=rep(NA, gene_pool_size), low_confidence_interval=rep(NA, gene_pool_size), high_confidence_interval=rep(NA, gene_pool_size), poisson_fitness=rep(NA, gene_pool_size))
+  statistics = data.frame(odds_ratio=rep(NA, gene_pool_size), odds_ratio_fitness=rep(NA, gene_pool_size), low_confidence_interval=rep(NA, gene_pool_size), high_confidence_interval=rep(NA, gene_pool_size), p_value=rep(NA, gene_pool_size))
   population <- list(antecedents=antecedents, thresholds=thresholds, fitness_values=fitness_values, statistics=statistics)
   
   #calculate initial population fitness and sort
-  population <- help.GA.calculate_population_fitness(population, gene_pool_size, number_of_genes, dataframe, weights, mode=fitness_mode)
-  population <- help.GA.sort_population(population)
+  population <- help.GenARM.calculate_population_fitness(population, gene_pool_size, number_of_genes, dataframe, weights, mode=fitness_mode)
+  population <- help.GenARM.sort_population(population)
   
-  help.GA.adjust_population_fitness(population, gene_pool_size, weights, sort=TRUE)
+  help.GenARM.adjust_population_fitness(population, gene_pool_size, weights, sort=TRUE)
   
   for (n in 1:number_of_generations) {
     # Duplicate population (new_population). This only serves the purpose of creating a list
@@ -77,20 +77,20 @@ GA.perform_genetic_algorithm_rule_mining <- function(dataframe, number_of_genera
     
     # Compute rules (population) similarity to adjust mutation_probability and tournament_win_probability
     # currently based only on antecedents, not thresholds
-    similarity <- help.GA.calculate_population_similarity(population$antecedents)
-    tournament_win_probability <- help.GA.adjust_probability_to_similarity(tournament_win_probability_range, similarity)
-    mutation_probability <- help.GA.adjust_probability_to_similarity(mutation_probability_range, similarity)
+    similarity <- help.GenARM.calculate_population_similarity(population$antecedents)
+    tournament_win_probability <- help.GenARM.adjust_probability_to_similarity(tournament_win_probability_range, similarity)
+    mutation_probability <- help.GenARM.adjust_probability_to_similarity(mutation_probability_range, similarity)
     
     # Crossover and mutation
     # Each crossover generates 2 children. We want gene_pool_size new children,
     # so we iterate gene_pool_size/2 times
     for (population_index in 1:(gene_pool_size/2)) {
       # pick two parents
-      parent_one <- help.GA.hold_tournament(tournament_size, gene_pool_size, tournament_win_probability)
-      parent_two <- help.GA.hold_tournament(tournament_size, gene_pool_size, tournament_win_probability)
+      parent_one <- help.GenARM.hold_tournament(tournament_size, gene_pool_size, tournament_win_probability)
+      parent_two <- help.GenARM.hold_tournament(tournament_size, gene_pool_size, tournament_win_probability)
       
-      children <- help.GA.generate_children_from_uniform_crossover(population, parent_one, parent_two, crossover_probability, parental_inheritance_proportion)
-      children <- help.GA.mutate_children(children, mutation_probability, median_attribute_values)
+      children <- help.GenARM.generate_children_from_uniform_crossover(population, parent_one, parent_two, crossover_probability, parental_inheritance_proportion)
+      children <- help.GenARM.mutate_children(children, mutation_probability, median_attribute_values)
       
       new_population$antecedents[population_index,] <- children[[1]]$antecedents
       new_population$thresholds[population_index,] <- children[[1]]$thresholds
@@ -100,13 +100,13 @@ GA.perform_genetic_algorithm_rule_mining <- function(dataframe, number_of_genera
     }
     
     # Measuring fitness of new population
-    new_population <- help.GA.calculate_population_fitness(new_population, gene_pool_size, number_of_genes, dataframe, weights, mode=fitness_mode)
+    new_population <- help.GenARM.calculate_population_fitness(new_population, gene_pool_size, number_of_genes, dataframe, weights, mode=fitness_mode)
     
     # Merge, sort and preserve best half
     merged_populations <- mapply(rbind, population, new_population, SIMPLIFY=FALSE)
     merged_populations$fitness_values <- c(population$fitness_values, new_population$fitness_values)
-    merged_populations <- help.GA.sort_population(merged_populations)
-    help.GA.adjust_population_fitness(merged_populations, gene_pool_size*2, weights, sort=TRUE)
+    merged_populations <- help.GenARM.sort_population(merged_populations)
+    help.GenARM.adjust_population_fitness(merged_populations, gene_pool_size*2, weights, sort=TRUE)
     
     population$antecedents <- merged_populations$antecedents[1:gene_pool_size,]
     population$thresholds <- merged_populations$thresholds[1:gene_pool_size,]
@@ -117,18 +117,18 @@ GA.perform_genetic_algorithm_rule_mining <- function(dataframe, number_of_genera
   return(population)
 }
 
-GA.statistics_report <- function(dataframe, population, gene_pool_size = 30, weights = rep(1,5)) {
-  output_values <- population$antecedents * population$threshold
+GenARM.statistics_report <- function(dataframe, population, gene_pool_size = 30, weights = rep(1,5)) {
+  return_values <- population$antecedents * population$threshold
   # convert logical features to true/false
-  output_values[is.na(output_values)] <- (population$antecedents[is.na(output_values)] == 1)
-  output_values <- cbind(output_values, fitness_values=population$fitness_values)
+  return_values[is.na(return_values)] <- (population$antecedents[is.na(return_values)] == 1)
+  return_values <- cbind(return_values, fitness_values=population$fitness_values)
   number_of_genes <- ncol(population$antecedents)
   
   supports <- array()
   lengths <- array()
   repetition_penalties <- array(NA, gene_pool_size)
   redundancy_penalties <- array()
-  statistics <- data.frame(odds_ratio=array(), odds_ratio_fitness=array(), low_confidence_interval=array(), log_high_confidence_interval=array(), poisson_fitness=array())
+  statistics <- data.frame(odds_ratio=array(), odds_ratio_fitness=array(), low_confidence_interval=array(), log_high_confidence_interval=array(), p_value=array())
   
   for (population_index in 1:gene_pool_size) {
     # first we binarize a copy of dataframe according to the thresholds
@@ -149,39 +149,39 @@ GA.statistics_report <- function(dataframe, population, gene_pool_size = 30, wei
     supports[population_index] <- sum(rowSums(binarized_dataframe) == ncol(binarized_dataframe)) / nrow(binarized_dataframe) # support is no o.f., but it's useful
     lengths[population_index] <- ncol(binarized_dataframe - 1) / number_of_genes
     
-    repetition_penalty = help.GA.calculate_repetition_penalty(population, population_index, gene_pool_size)
+    repetition_penalty = help.GenARM.calculate_repetition_penalty(population, population_index, gene_pool_size)
     if (identical(repetition_penalty, numeric(0)))
       repetition_penalties[i] <- 0
     else 
       repetition_penalties[i] <- repetition_penalty
     
-    redundancy_penalty = help.GA.calculate_redundancy_penalty(population, population_index, gene_pool_size)
+    redundancy_penalty = help.GenARM.calculate_redundancy_penalty(population, population_index, gene_pool_size)
     if (identical(redundancy_penalty, numeric(0)))
       redundancy_penalties[population_statistics] <- 0
     else 
       redundancy_penalties[population_statistics] <- redundancy_penalty
     
-    statistics[population_index, ] <- help.GA.calculate_population_statistics(binarized_dataframe)
+    statistics[population_index, ] <- help.GenARM.calculate_population_statistics(binarized_dataframe)
   }
   
-  output_values <- cbind(rule_index=(1:gene_pool_size), output_values, length=lengths, repetition=repetition_penalties, redundancy=redundancy_penalties, support=supports, statistics)
+  return_values <- cbind(rule_index=(1:gene_pool_size), return_values, length=lengths, repetition=repetition_penalties, redundancy=redundancy_penalties, support=supports, statistics)
   
-  return(output_values)
+  return(return_values)
 }
 
-#' help.GA functions
+#' help.GenARM functions
 #' 
 #' This section of file contains auxillary helper functions for taking care of various calculation
 #' functions as well as the modular components of the genetic algorithm itself. 
 #' 
 #' These functions are used for code simplicity and will likely never be called outside of this file. 
-#' All helper function names should begin help.GA. to aid contributors to this file in locating them.
+#' All helper function names should begin help.GenARM. to aid contributors to this file in locating them.
 
-help.GA.adjust_population_fitness <- function(population, gene_pool_size, weights, sort=TRUE) {
+help.GenARM.adjust_population_fitness <- function(population, gene_pool_size, weights, sort=TRUE) {
   # Adjust fitness to avoid rule repetitions and redundancy and sort again
   for (population_index in 1:gene_pool_size) {
-    repetition_penalty <- help.GA.calculate_repetition_penalty(population, population_index, gene_pool_size)
-    redundancy_penalty <- help.GA.calculate_redundancy_penalty(population, population_index, gene_pool_size)
+    repetition_penalty <- help.GenARM.calculate_repetition_penalty(population, population_index, gene_pool_size)
+    redundancy_penalty <- help.GenARM.calculate_redundancy_penalty(population, population_index, gene_pool_size)
     
     if(!is.na(repetition_penalty))
       population$fitness_values[ population_index] <- population$fitness_values[ population_index] - weights[3]*repetition_penalty
@@ -189,21 +189,21 @@ help.GA.adjust_population_fitness <- function(population, gene_pool_size, weight
       population$fitness_values[ population_index] <- population$fitness_values[ population_index] - weights[4]*redundancy_penalty
   }
   if (sort) 
-    population <- help.GA.sort_population(population)
+    population <- help.GenARM.sort_population(population)
   return(population)
 }
 
-help.GA.adjust_probability_to_similarity <- function(probability_range, similarity) {
+help.GenARM.adjust_probability_to_similarity <- function(probability_range, similarity) {
   return(probability_range[1] + (probability_range[2] - probability_range[1]) * similarity)
 }
 
-help.GA.calculate_median_distance <- function(thresholds, medians, maximum_possible_distance) {
+help.GenARM.calculate_median_distance <- function(thresholds, medians, maximum_possible_distance) {
   distance <- abs(thresholds - medians)/maximum_possible_distance # distance from median normalized by maximum distance possible
   distance <- distance[!is.na(distance)] # drop NaN caused by logical features
   return(sum(distance)/length(distance))   
 }
 
-help.GA.calculate_population_fitness <- function(population, population_size, number_of_genes, dataframe, weights, mode) {
+help.GenARM.calculate_population_fitness <- function(population, population_size, number_of_genes, dataframe, weights, mode) {
   for (current_sample in 1:population_size) {
     
     binarized_dataframe <- dataframe
@@ -253,12 +253,12 @@ help.GA.calculate_population_fitness <- function(population, population_size, nu
   return(population)
 }
 
-help.GA.calculate_population_similarity <- function(antecedents) {
+help.GenARM.calculate_population_similarity <- function(antecedents) {
   similarity <- 2 * abs(colSums(antecedents) / nrow(antecedents) - .5)
   return(sum(similarity) / length(similarity))
 }
 
-help.GA.calculate_population_statistics <- function(binarized_dataframe) {
+help.GenARM.calculate_population_statistics <- function(binarized_dataframe) {
   cases <- binarized_dataframe[binarized_dataframe[,1], 2:ncol(binarize_dataframe)]
   controls <- binarized_dataframe[!binarized_dataframe[,1], 2:ncol(binarized_dataframe)]
   
@@ -299,12 +299,12 @@ help.GA.calculate_population_statistics <- function(binarized_dataframe) {
   expected_unexposed_controls <- number_of_control - expected_exposed_controls
   
   chi_square <- (exposed_cases - expected_exposed_cases)^2/expected_exposed_cases + (unexposed_cases - expected_unexposed_cases)^2/expected_unexposed_cases + (exposed_controls - expected_exposed_controls)^2/expected_exposed_controls + (unexposed_controls - expected_unexposed_controls)^2/expected_unexposed_controls
-  poisson_fitness <- pchisq(chi_square, 1, lower.tail=FALSE) 
+  p_value <- pchisq(chi_square, 1, lower.tail=FALSE) 
   
-  return(c(odds_ratio, odds_ratio_fitness, low_confidence_interval, log_high_confidence_interval, poisson_fitness))
+  return(c(odds_ratio, odds_ratio_fitness, low_confidence_interval, log_high_confidence_interval, p_value))
 }
 
-help.GA.calculate_redundancy_penalty <- function(population, sample_index, gene_pool_size) {
+help.GenARM.calculate_redundancy_penalty <- function(population, sample_index, gene_pool_size) {
   if (sum(population$antecedents[sample_index,]) < 2)
     return(0) # rules of length 1 can not be redundant
   
@@ -357,7 +357,7 @@ help.GA.calculate_redundancy_penalty <- function(population, sample_index, gene_
   else return(cumulative_penalty/count)
 }
 
-help.GA.calculate_repetition_penalty <- function(population, sample_index, gene_pool_size) {
+help.GenARM.calculate_repetition_penalty <- function(population, sample_index, gene_pool_size) {
   penalty_weights <- seq(from=1, to=0, by=(-1 / (gene_pool_size - 1))) # monotonically decreasing
   cumulative_penalty <- 0
   
@@ -371,16 +371,16 @@ help.GA.calculate_repetition_penalty <- function(population, sample_index, gene_
   return(cumulative_penalty)
 }
 
-help.GA.chance_event_occurs <- function(event_probability) {
+help.GenARM.chance_event_occurs <- function(event_probability) {
   return(runif(1) < event_probability)
 }
 
-help.GA.coin_toss <- function() {
-  return(help.GA.chance_event_occurs(.5))
+help.GenARM.coin_toss <- function() {
+  return(help.GenARM.chance_event_occurs(.5))
 }
 
 # Function to perform uniform crossover of two parents
-help.GA.generate_children_from_uniform_crossover <- function(population, parent_one, parent_two, crossover_probability, parental_inheritance_proportion=.5){
+help.GenARM.generate_children_from_uniform_crossover <- function(population, parent_one, parent_two, crossover_probability, parental_inheritance_proportion=.5){
   child_one <- list(antecedents=population$antecedents[parent_one,], thresholds=population$thresholds[parent_one,])
   child_two <- list(antecedents=population$antecedents[parent_two,], thresholds=population$thresholds[parent_two,])
   
@@ -408,30 +408,30 @@ help.GA.generate_children_from_uniform_crossover <- function(population, parent_
 # the strongest rule has a probability p to win the tournament. 
 # The second strongest rule can win with a probability p*(1-p), 
 # the third with a probability p(1-p)^2, and so on.
-help.GA.hold_tournament <- function(tournament_size, gene_pool_size, tournament_win_probability){
+help.GenARM.hold_tournament <- function(tournament_size, gene_pool_size, tournament_win_probability){
   tournament_lose_probability <- 1 - tournament_win_probability
   competitors <- sort(sample(1:gene_pool_size, tournament_size))
   competitor_win_probability <- 0
   for (competitor_index in 1:tournament_size) {
     competitor_win_probability <- competitor_win_probability + tournament_win_probability*(tournament_lose_probability^(competitor_index - 1))
-    if (help.GA.chance_event_occurs(competitor_win_probability))
+    if (help.GenARM.chance_event_occurs(competitor_win_probability))
       return(competitors[competitor_index])
   }
   # In the eventuality no gene is selected:
   return(competitors[tournament_size])
 }
 
-help.GA.mutate_children <- function(children, mutation_probability, median_attribute_values) {
+help.GenARM.mutate_children <- function(children, mutation_probability, median_attribute_values) {
   for(child_index in 1:2){
     for(gene_index in 1:length(children[[child_index]]$antecedents)){
-      if(GA.chance_event_occurs(mutation_probability)) {
+      if(GenARM.chance_event_occurs(mutation_probability)) {
         if (children[[child_index]]$antecedents[gene_index]==1)
           children[[child_index]]$antecedents[gene_index] <- 0
         else children[[child_index]]$antecedents[gene_index] <- 1
         
         change_in_mutation_threshold <- 10 * mutation_probability * median_antecedent_values[gene_index] # percentage of median dependent on pm, scaled by 10 to produce larger changes
         
-        if(help.GA.coin_toss()) 
+        if(help.GenARM.coin_toss()) 
           children[[child_index]]$thresholds[i] <- children[[child_index]]$thresholds[i] - change_in_mutation_threshold
         
         else children[[child_index]]$thresholds[i] <- children[[child_index]]$thresholds[i] + change_in_mutation_threshold       
@@ -441,7 +441,7 @@ help.GA.mutate_children <- function(children, mutation_probability, median_attri
   return(children)
 }
 
-help.GA.sort_population <- function(population) {
+help.GenARM.sort_population <- function(population) {
   population_rank <- order(population$fitness_values, decreasing=TRUE)
   population$fitness_values <- population$fitness_values[population_rank]
   population$antecedents <- population$antecedents[population_rank, ]
