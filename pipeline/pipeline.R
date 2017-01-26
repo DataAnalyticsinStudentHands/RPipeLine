@@ -19,3 +19,8 @@ source('dataload.R')
 source('dataoutput.R')
 source('dataprepare.R')
 source('dataprocess.R')
+
+pipeline.load_TCEQ_libs <- function() {
+  source('./prepare_libs/TCEQ.R')
+  source('./process_libs/TCEQ.R')
+}

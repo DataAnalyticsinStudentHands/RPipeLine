@@ -31,7 +31,7 @@
 #' @examples
 #+ example_dataframe <- load.file_as_dataframe("./examples/sample_data/test.csv")
 #+ example_dataframe <- load.file_as_dataframe("./examples/sample_data/test.dat", datatype = "csv")
-load.file_as_dataframe <- function(datafile, datatype = FALSE) {
+load.file_as_dataframe <- function(datafile, datatype = FALSE, maximum_rows = NA) {
   dataframe <- NULL
   
   if (typeof(datatype) != "str") {
@@ -39,7 +39,7 @@ load.file_as_dataframe <- function(datafile, datatype = FALSE) {
     datatype <- file_ext(datafile) 
   }
   if (datatype == "csv") {
-    dataframe <- load.csv_as_dataframe(datafile)
+    dataframe <- load.csv_as_dataframe(datafile, maximum_rows)
   }
   
   if (is.null(dataframe)) {
@@ -59,8 +59,8 @@ load.file_as_dataframe <- function(datafile, datatype = FALSE) {
 #'
 #' @examples
 #+ example_dataframe <- load.csv_as_dataframe("./examples/sample_data/test.csv")
-load.csv_as_dataframe <- function(datafile) {
-  dataframe <- read.csv(datafile)
+load.csv_as_dataframe <- function(datafile, maximum_rows = NA) {
+  dataframe <- read.csv(datafile, nrows = maximum_rows)
   return(dataframe)
 }
 
